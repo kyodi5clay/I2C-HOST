@@ -1,43 +1,54 @@
 #include <msp430.h>
+#include "driverlib.h"
+#include "eusci_b_i2c.h"
 
-#define SLAVE_ADDR   0x00
-#define BYTE_TO_SEND 0x00
-
-void main(void)
+void delay_seconds(unsigned int seconds)
 {
-    WDTCTL = WDTPW | WDTHOLD;    // Stop watchdog
-    PM5CTL0 &= ~LOCKLPM5;        // Unlock GPIO from high-impedance mode
+    // Assumes 1 MHz clock => 1,000,000 cycles/sec
+    // Approx 1M cycles = 1 sec, so delay N seconds:
+    int i = 0;
+    for (i; i < seconds; i++)
+        __delay_cycles(1000000);
+}
 
-    // === GPIO Setup ===
-    P1SEL0 |= BIT6 | BIT7;       // Set P1.6, P1.7 to USCI_B0 I2C function
-    P1SEL1 &= ~(BIT6 | BIT7);    // Primary module function
+int main(void)
+{
+    /*WDTCTL = WDTPW | WDTHOLD;     // Stop watchdog timer
+    PM5CTL0 &= ~LOCKLPM5;         // Unlock GPIOs
+    SFRRPCR |= SYSRSTRE | SYSRSTUP;
 
-    P1DIR &= ~(BIT6 | BIT7);     // Set as inputs (I2C open-drain)
-    P1OUT |= BIT6 | BIT7;        // Enable pull-up (OUT=1)
-    P1REN |= ~(BIT6 | BIT7);        // Enable resistor
 
-    // === Clock: Default DCO ~1MHz used for SMCLK ===
+    
+    P1SEL0 |= BIT6 | BIT7;            // Select primary I2C function
+    P1SEL1 &= ~(BIT6 | BIT7);         // Clear secondary function
 
-    // === USCI_B0 I2C Master Setup ===
-    UCB0CTLW0 = UCSWRST;                     // Hold eUSCI_B0 in reset
-    UCB0CTLW0 |= UCSSEL_2 | UCMST | UCMODE_3 | UCSYNC; // SMCLK, master, I2C, sync
-    UCB0BRW = 1000;                            // Divide SMCLK (1MHz) by 10 = 100kHz
-    UCB0I2CSA = SLAVE_ADDR;                 // Set slave address
-    UCB0CTLW0 &= ~UCSWRST;                   // Release from reset
-    UCB0IE = 0;                              // Disable USCI interrupts (polling)
+*/
 
-    while (1)
+    EUSCI_B_I2C_initMasterParam param = {
+        .selectClockSource = EUSCI_B_I2C_CLOCKSOURCE_SMCLK,
+        .i2cClk = 1000000,
+        .dataRate = EUSCI_B_I2C_SET_DATA_RATE_100KBPS,
+        .byteCounterThreshold = 0,
+        .autoSTOPGeneration = EUSCI_B_I2C_NO_AUTO_STOP};
+
+    EUSCI_B_I2C_initMaster(EUSCI_B0_BASE, &param);
+    
+    EUSCI_B_I2C_setSlaveAddress(EUSCI_B0_BASE, 0x0f);
+    EUSCI_B_I2C_setMode(EUSCI_B0_BASE, EUSCI_B_I2C_TRANSMIT_MODE);
+
+    HWREG16(0x0064E) &= 0b111111111;
+    HWREG16(EUSCI_B0_BASE + OFS_UCBxIFG) &= ~(UCTXIFG);
+    EUSCI_B_I2C_enable(EUSCI_B0_BASE);
+
+  
+
+    EUSCI_B_I2C_masterSendSingleByte(EUSCI_B0_BASE, 0x0010);
+
+    /*while(1)
     {
-           // Wait for bus to be free
+        //send Byte
+        EUSCI_B_I2C_masterSendSingleByte(EUSCI_B0_BASE, 0x0010);
 
-        // === Transmit 1 byte ===
-        UCB0CTLW0 |= UCTR | UCTXSTT;         // I2C TX, start condition
-        while (!(UCB0IFG & UCTXIFG0));       // Wait for TX buffer ready
-        UCB0TXBUF = BYTE_TO_SEND;            // Load byte to transmit
-        while (!(UCB0IFG & UCSTPIFG))        // Wait for stop condition (sent automatically)
-            ;
-        UCB0IFG &= ~UCSTPIFG;                // Clear stop flag
-
-        __delay_cycles(5000000);                // 5 ms delay @ 1 MHz
-    }
+        delay_seconds(2);
+    };*/
 }
