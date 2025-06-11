@@ -89,7 +89,7 @@ void EUSCI_B_I2C_setSlaveAddress (uint16_t baseAddress,
     )
 {
     //Set the address of the slave with which the master will communicate.
-    HWREG16(baseAddress + OFS_UCBxI2CSA) = (slaveAddress);
+    HWREG16(baseAddress + OFS_UCBxI2COA0) = (slaveAddress);
 }
 
 void EUSCI_B_I2C_setMode (uint16_t baseAddress,
@@ -173,6 +173,9 @@ void EUSCI_B_I2C_masterSendSingleByte (uint16_t baseAddress,
     uint8_t txData
     )
 {
+
+    HWREG16(baseAddress + OFS_UCBxTXBUF) = 0x00;
+
     //Store current TXIE status
     uint16_t txieStatus = HWREG16(baseAddress + OFS_UCBxIE) & UCTXIE;
 
@@ -183,13 +186,13 @@ void EUSCI_B_I2C_masterSendSingleByte (uint16_t baseAddress,
     HWREG16(baseAddress + OFS_UCBxCTLW0) |= UCTR + UCTXSTT;
 
     //Poll for transmit interrupt flag.
-    while (!(HWREG16(baseAddress + OFS_UCBxIFG) & UCTXIFG)) ;
+    while (!(HWREG16(baseAddress + OFS_UCBxIFG) & UCTXIFG0)) ;
 
     //Send single byte data.
     HWREG16(baseAddress + OFS_UCBxTXBUF) = txData;
 
     //Poll for transmit interrupt flag.
-    while (!(HWREG16(baseAddress + OFS_UCBxIFG) & UCTXIFG)) ;
+    while (!(!HWREG16(baseAddress + OFS_UCBxIFG) & UCTXIFG0)) ;
 
     //Send stop condition.
     HWREG16(baseAddress + OFS_UCBxCTLW0) |= UCTXSTP;
