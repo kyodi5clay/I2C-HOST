@@ -39,7 +39,8 @@ void EUSCI_B_I2C_initMaster (uint16_t baseAddress,
      * UCMODE_3 = I2C mode
      * UCSYNC = Synchronous mode
      */
-    HWREG16(baseAddress + OFS_UCBxCTLW0) |= UCMST + UCMODE_3 + UCSYNC;
+    HWREG16(baseAddress + OFS_UCBxCTLW0) |= UCMST + UCMODE_3;
+    UCB0CTLW0 &= ~BIT8;
 
     //Configure I2C clock source
     HWREG16(baseAddress + OFS_UCBxCTLW0) |= (param->selectClockSource + UCSWRST);
@@ -50,7 +51,7 @@ void EUSCI_B_I2C_initMaster (uint16_t baseAddress,
      * clock divider so that the resulting clock is always less than or equal
      * to the desired clock, never greater.
      */
-    preScalarValue = (uint16_t)(param->i2cClk / param->dataRate);
+    preScalarValue = (uint16_t) (160);
     HWREG16(baseAddress + OFS_UCBxBRW) = preScalarValue;
 }
 
@@ -89,7 +90,7 @@ void EUSCI_B_I2C_setSlaveAddress (uint16_t baseAddress,
     )
 {
     //Set the address of the slave with which the master will communicate.
-    HWREG16(baseAddress + OFS_UCBxI2COA0) = (slaveAddress);
+    HWREG16(baseAddress + OFS_UCBxI2CSA) = (slaveAddress);
 }
 
 void EUSCI_B_I2C_setMode (uint16_t baseAddress,
@@ -192,7 +193,7 @@ void EUSCI_B_I2C_masterSendSingleByte (uint16_t baseAddress,
     HWREG16(baseAddress + OFS_UCBxTXBUF) = txData;
 
     //Poll for transmit interrupt flag.
-    while (!(!HWREG16(baseAddress + OFS_UCBxIFG) & UCTXIFG0)) ;
+    while (!(HWREG16(baseAddress + OFS_UCBxIFG) & UCTXIFG0)) ;
 
     //Send stop condition.
     HWREG16(baseAddress + OFS_UCBxCTLW0) |= UCTXSTP;

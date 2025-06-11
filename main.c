@@ -13,11 +13,15 @@ void delay_seconds(unsigned int seconds)
 
 void send_byte(uint8_t txData){
 
+    P1OUT |= BIT7;
+
     UCB0CTLW0 |= UCTR + UCTXSTT;
 
     UCB0TXBUF = txData;
 
     UCB0CTLW0 |= UCTXSTP;
+
+    P1OUT |= ~BIT7;
 
 
 }
@@ -32,11 +36,19 @@ int main(void)
     WDTCTL = WDTPW | WDTHOLD; //stop watchdog timer
 
     P1SEL0 |= BIT6 | BIT7;            // Select primary I2C function
-    P1SEL1 &= ~(BIT6 | BIT7);         // Clear secondary function
+    P1SEL1 |= ~( BIT6 | BIT7);         // Clear secondary function
+    P1DIR  |= BIT6;
+    P1DIR  |= BIT7;
+
+
+    P1REN |= ~BIT6;
+    P1REN |= ~BIT7;
 
     P3DIR |= BIT4;
     P3SEL0 |= BIT4;                           // Output SMCLK
     P3SEL1 |= BIT4;
+
+
 
     P3OUT &= ~BIT4;     // Set output register low (for pulldown)
     P3REN |= BIT4;      // Enable pullup/pulldown resistor
@@ -61,7 +73,7 @@ int main(void)
 
     // Select SMCLK = DCO
     //CS_initClockSignal(CS_SMCLK, CS_DCOCLK_SELECT, CS_CLOCK_DIVIDER_8);
-
+    /*
     EUSCI_B_I2C_initMasterParam param = {
         .selectClockSource = EUSCI_B_I2C_CLOCKSOURCE_SMCLK,
         .i2cClk = 16000000,
@@ -72,7 +84,7 @@ int main(void)
     EUSCI_B_I2C_initMaster(EUSCI_B0_BASE, &param); // write settings to proper registers
     
     EUSCI_B_I2C_setSlaveAddress(EUSCI_B0_BASE, 0x0f); // Set slave address
-    UCB0I2CSA = 0x0f;
+    UCB0I2COA0 = 0x0f;
 
     EUSCI_B_I2C_setMode(EUSCI_B0_BASE, EUSCI_B_I2C_TRANSMIT_MODE); // Set to transit mode
 
@@ -81,6 +93,16 @@ int main(void)
 
 
     EUSCI_B_I2C_enableInterrupt(EUSCI_B0_BASE, EUSCI_B_I2C_TRANSMIT_INTERRUPT0);
+    */
+
+    UCB0CTLW0 |= UCSWRST;
+    UCB0CTLW0 |=  UCSSEL__SMCLK + UCMST + UCSYNC + UCMODE_3; //Select SMCLK, Master, synchronous, I2C
+    //TI recommends sending single byte with automatic stop generation and byte counter
+    UCB0CTLW1 |=  UCASTP_2; //Automatic stop generation when byte counter is hit
+    UCB0TBCNT = 5; //Set counter to 1-byte
+    UCB0BRW = 160;  //Divide SMCLK by 10 to get ~100 kHz
+    UCB0I2CSA = 0x0f; // FR2355 address (slave)
+    UCB0CTLW0 &= ~UCSWRST; // Clear reset
 
     UCB0IE |= (UCTXIE0); //Should set interrupt pin
 
@@ -89,8 +111,13 @@ int main(void)
     send_byte(0x0f);
 
 
+    UCB0TXBUF = 0x0000;
+
     while(1){
-        EUSCI_B_I2C_masterSendSingleByte(EUSCI_B0_BASE, 0x0f);
+        //EUSCI_B_I2C_masterSendSingleByte(EUSCI_B0_BASE, 0x0f);
+
+        send_byte(0x0f);
+
         __delay_cycles(20);
         
         
