@@ -26,29 +26,41 @@ void send_byte(uint8_t txData){
 int main(void)
 {
 
-    
+    __delay_cycles(5);
 
     //PMMCTL0 |= BIT3;
     WDTCTL = WDTPW | WDTHOLD; //stop watchdog timer
 
-    PM5CTL0 &= ~LOCKLPM5; // Unlock GPIO pins
-
     P1SEL0 |= BIT6 | BIT7;            // Select primary I2C function
     P1SEL1 &= ~(BIT6 | BIT7);         // Clear secondary function
 
-    P3DIR |= BIT4;       // Set P3.4 as output
-    P3SEL0 |= BIT4;      // Select primary peripheral function
-    P3SEL1 &= ~BIT4;     // Ensure second function is disabled
+    P3DIR |= BIT4;
+    P3SEL0 |= BIT4;                           // Output SMCLK
+    P3SEL1 |= BIT4;
 
     P3OUT &= ~BIT4;     // Set output register low (for pulldown)
     P3REN |= BIT4;      // Enable pullup/pulldown resistor
 
 
-    // Set DCO to 16MHz
-    CS_setDCOFreq(CS_DCORSEL_0, CS_DCOFSEL_0); // 16 MHz from table
+    PM5CTL0 &= ~LOCKLPM5; // Unlock GPIO pins
+
+
+    // Disable FLL control loop
+    __bis_SR_register(SCG0);
+
+    // Set DCO to 16 MHz
+    CSCTL0_H = 0xA5;           // Unlock CS registers
+    CSCTL1 = DCOFSEL_4 | DCORSEL;    // Set DCO = 16MHz
+    CSCTL2 = SELS__DCOCLK;           // SMCLK source = DCO
+    CSCTL3 = DIVS__1;                // SMCLK divider = 1
+    CSCTL0_H = 0;                    // Lock CS registers
+
+    __bic_SR_register(SCG0);         // Re-enable FLL control loop
+
+
 
     // Select SMCLK = DCO
-    CS_initClockSignal(CS_SMCLK, CS_DCOCLK_SELECT, CS_CLOCK_DIVIDER_8);
+    //CS_initClockSignal(CS_SMCLK, CS_DCOCLK_SELECT, CS_CLOCK_DIVIDER_8);
 
     EUSCI_B_I2C_initMasterParam param = {
         .selectClockSource = EUSCI_B_I2C_CLOCKSOURCE_SMCLK,
@@ -77,7 +89,13 @@ int main(void)
     send_byte(0x0f);
 
 
-    while(1){;};
+    while(1){
+        EUSCI_B_I2C_masterSendSingleByte(EUSCI_B0_BASE, 0x0f);
+        __delay_cycles(20);
+        
+        
+        
+        };
     //EUSCI_B_I2C_masterSendSingleByte(EUSCI_B0_BASE, 0x0f);
 
     /*while(1)
