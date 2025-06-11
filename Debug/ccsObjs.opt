@@ -34,7 +34,6 @@
 "./driverlib/MSP430FR5xx_6xx/tlv.obj"
 "./driverlib/MSP430FR5xx_6xx/uups.obj"
 "./driverlib/MSP430FR5xx_6xx/wdt_a.obj"
-"../lnk_msp430fr5969.cmd"
 -llibmpu_init.a
 -llibmath.a
 -llibc.a
