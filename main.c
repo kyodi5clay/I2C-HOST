@@ -13,16 +13,13 @@ void delay_seconds(unsigned int seconds)
 
 void send_byte(uint8_t txData){
 
-    P1OUT |= BIT7;
-
     UCB0CTLW0 |= UCTR + UCTXSTT;
+
+    while ((UCB0CTL1 & UCTXSTT) == 0);
 
     UCB0TXBUF = txData;
 
     UCB0CTLW0 |= UCTXSTP;
-
-    P1OUT |= ~BIT7;
-
 
 }
 
@@ -37,8 +34,6 @@ int main(void)
 
     P1SEL0 |= BIT6 | BIT7;            // Select primary I2C function
     P1SEL1 |= ~( BIT6 | BIT7);         // Clear secondary function
-    P1DIR  |= BIT6;
-    P1DIR  |= BIT7;
 
 
     P1REN |= ~BIT6;
@@ -101,22 +96,21 @@ int main(void)
     UCB0CTLW1 |=  UCASTP_2; //Automatic stop generation when byte counter is hit
     UCB0TBCNT = 5; //Set counter to 1-byte
     UCB0BRW = 160;  //Divide SMCLK by 10 to get ~100 kHz
-    UCB0I2CSA = 0x0f; // FR2355 address (slave)
+    UCB0I2CSA = 0x0e; // FR2355 address (slave)
     UCB0CTLW0 &= ~UCSWRST; // Clear reset
 
     UCB0IE |= (UCTXIE0); //Should set interrupt pin
-
     _BIS_SR (GIE); // enable interrupts
 
     send_byte(0x0f);
-
+    UCB0IFG = 0;
 
     UCB0TXBUF = 0x0000;
 
     while(1){
         //EUSCI_B_I2C_masterSendSingleByte(EUSCI_B0_BASE, 0x0f);
 
-        send_byte(0x0f);
+        send_byte(0x0e);
 
         __delay_cycles(20);
         
